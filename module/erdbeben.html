@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Erdbeben weltweit in den letzten sieben Tagen auf einer Karte und als Tagesdiagramm.">
+  <title>Erdbebenkarte – Geodaten-Dashboard</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-width">
+      <a class="back-link" href="../index.html">← Zur Startseite</a>
+      <h1>Erdbebenkarte – letzte 7 Tage</h1>
+      <p>Sieh dir an, wo und wie stark die Erde in der letzten Woche gebebt hat.</p>
+    </div>
+  </header>
+  <main class="page-width">
+    <section class="controls" aria-labelledby="filter-heading">
+      <h2 id="filter-heading">Erdbeben filtern</h2>
+      <label for="magnitude-filter">Mindestmagnitude: <output id="magnitude-value" for="magnitude-filter">2,5</output></label>
+      <input id="magnitude-filter" type="range" min="0" max="7" step="0.1" value="2.5">
+      <p class="help-text">Mit dem Schieberegler kannst du schwächere Beben ausblenden.</p>
+    </section>
+
+    <p id="feed-status" class="status" role="status" aria-live="polite">Erdbebendaten werden geladen …</p>
+
+    <section aria-labelledby="map-heading">
+      <h2 id="map-heading">Erdbeben weltweit</h2>
+      <div id="earthquake-map" class="map" role="region" aria-label="Interaktive Karte mit Erdbeben der letzten sieben Tage"></div>
+      <div class="legend" aria-label="Kartenlegende">
+        <div class="legend-group">
+          <h3>Magnitude (Kreisgröße)</h3>
+          <div class="magnitude-legend" aria-label="Größere Kreise stehen für stärkere Erdbeben">
+            <span><i class="legend-dot dot-small"></i> 1</span>
+            <span><i class="legend-dot dot-medium"></i> 3</span>
+            <span><i class="legend-dot dot-large"></i> 5+</span>
+          </div>
+        </div>
+        <div class="legend-group">
+          <h3>Tiefe</h3>
+          <div class="depth-gradient" aria-hidden="true"></div>
+          <div class="gradient-labels"><span>flach</span><span>tief</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chart-section" aria-labelledby="chart-heading">
+      <h2 id="chart-heading">Anzahl der Erdbeben pro Tag</h2>
+      <p id="chart-description" class="help-text">Das Diagramm zeigt alle Erdbeben im Feed, unabhängig vom eingestellten Filter.</p>
+      <div class="chart-container">
+        <canvas id="daily-chart" role="img" aria-label="Balkendiagramm mit der Anzahl der Erdbeben pro Tag" aria-describedby="chart-description"></canvas>
+      </div>
+    </section>
+
+    <section class="source-note" aria-labelledby="source-heading">
+      <h2 id="source-heading">Quelle und Aktualität</h2>
+      <p>Daten: <a href="https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson">USGS Earthquake Hazards Program</a> (Erdbebendaten sind gemeinfrei). Die Daten umfassen die letzte Woche und werden regelmäßig vom USGS aktualisiert. <span id="updated-at"></span></p>
+      <p>Kartenkacheln: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap-Mitwirkende</a>, lizenziert unter ODbL.</p>
+    </section>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="../assets/erdbeben.js"></script>
+</body>
+</html>
