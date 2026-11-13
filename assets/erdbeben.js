@@ -6,11 +6,7 @@ const filterElement = document.getElementById("magnitude-filter");
 const magnitudeValue = document.getElementById("magnitude-value");
 const updatedAt = document.getElementById("updated-at");
 const map = L.map("earthquake-map", { keyboard: true }).setView([20, 0], 2);
-
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap-Mitwirkende</a>'
-}).addTo(map);
+addBasemapControl(map);
 
 const earthquakeLayer = L.featureGroup().addTo(map);
 const earthquakeMarkers = [];

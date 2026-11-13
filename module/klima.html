@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Klimadiagramm für einen frei wählbaren Ort mit Daten der letzten fünf vollständigen Jahre.">
+  <title>Klimadiagramm für einen Ort – Geodaten-Dashboard</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-width">
+      <a class="back-link" href="../index.html">← Zur Startseite</a>
+      <h1>Klimadiagramm für einen Ort</h1>
+      <p>Wähle einen Ort auf der Karte oder suche ihn, um Temperatur und Niederschlag zu vergleichen.</p>
+    </div>
+  </header>
+  <main class="page-width">
+    <section class="controls" aria-labelledby="place-heading">
+      <h2 id="place-heading">Ort auswählen</h2>
+      <form id="place-search" class="search-form">
+        <label for="place-query">Ort suchen</label>
+        <div class="search-row">
+          <input id="place-query" name="q" type="search" required autocomplete="off" placeholder="z. B. Neapel">
+          <button type="submit">Suchen</button>
+        </div>
+      </form>
+      <p class="help-text">Du kannst auch direkt auf die Karte klicken. Die Suche nutzt OpenStreetMap.</p>
+    </section>
+
+    <p id="climate-status" class="status" role="status" aria-live="polite">Wähle einen Ort auf der Karte oder suche danach.</p>
+
+    <section aria-labelledby="map-heading">
+      <h2 id="map-heading">Ort auf der Karte auswählen</h2>
+      <div id="climate-map" class="map" role="region" aria-label="Interaktive Karte. Wähle mit einem Klick einen Ort aus." tabindex="0"></div>
+    </section>
+
+    <section class="chart-section" aria-labelledby="chart-heading">
+      <h2 id="chart-heading">Klima im Jahresverlauf</h2>
+      <div class="climate-summary">
+        <h3 id="selected-place">Noch kein Ort ausgewählt</h3>
+        <p id="climate-summary-text">Jahresmitteltemperatur und Jahresniederschlag erscheinen hier.</p>
+      </div>
+      <p id="chart-description" class="help-text">Monatsmittel der Temperatur und mittlere Monatssummen des Niederschlags über fünf vollständige Jahre. Die Skalen stehen im Verhältnis 10 °C zu 20 mm.</p>
+      <div class="chart-container">
+        <canvas id="climate-chart" role="img" aria-label="Klimadiagramm mit mittlerer Monatstemperatur und mittlerem Monatsniederschlag" aria-describedby="chart-description"></canvas>
+      </div>
+    </section>
+
+    <section class="source-note" aria-labelledby="source-heading">
+      <h2 id="source-heading">Quellen und Zeitraum</h2>
+      <p>Klimadaten: <a href="https://open-meteo.com/">Open-Meteo Archive API</a>, lizenziert unter <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Angezeigt werden die letzten fünf vollständigen Kalenderjahre. Die Werte sind langjährige Monatsmittel und keine Vorhersage.</p>
+      <p>Ortssuche und Kartendaten: <a href="https://www.openstreetmap.org/copyright">OpenStreetMap-Mitwirkende</a>. Die Quellen der auswählbaren Hintergrundkarten stehen jeweils direkt auf der Karte.</p>
+    </section>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="../assets/basemaps.js"></script>
+  <script src="../assets/klima.js"></script>
+</body>
+</html>

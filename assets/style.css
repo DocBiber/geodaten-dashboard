@@ -88,6 +88,55 @@ h2 {
   font-weight: 700;
 }
 
+input[type="search"] {
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #64748b;
+  border-radius: 0.25rem;
+  font: inherit;
+}
+
+.search-form {
+  max-width: 36rem;
+}
+
+.search-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.search-row input {
+  flex: 1;
+}
+
+button {
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #0756a5;
+  border-radius: 0.25rem;
+  color: #fff;
+  background: #0756a5;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 3px;
+}
+
+.climate-summary {
+  margin-block: 0.5rem 0.75rem;
+}
+
+.climate-summary h3,
+.climate-summary p {
+  margin: 0.25rem 0;
+}
+
 input[type="range"] {
   display: block;
   width: 100%;
@@ -227,6 +276,10 @@ input[type="range"] {
     gap: 1rem;
   }
 
+  .search-row {
+    flex-direction: column;
+  }
+
   .chart-container {
     height: 16rem;
     padding: 0.35rem;
@@ -261,6 +314,10 @@ input[type="range"] {
   .back-link,
   .controls,
   .status {
+    display: none;
+  }
+
+  .leaflet-control-layers {
     display: none;
   }
 
