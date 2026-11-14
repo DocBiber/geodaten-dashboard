@@ -1,0 +1,6 @@
+{
+  "source": "Open-Meteo Archive API",
+  "license": "CC BY 4.0",
+  "period": {"startYear": 2015, "endYear": 2024},
+  "places": []
+}
