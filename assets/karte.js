@@ -11,5 +11,6 @@ addBasemapControl(
     "Erdbeben (7 Tage)": earthquakes.layer,
     "Klima-Orte": climatePlaces
   },
-  ["Erdbeben (7 Tage)"]
+  ["Erdbeben (7 Tage)"],
+  document.getElementById("map-layer-controls")
 );

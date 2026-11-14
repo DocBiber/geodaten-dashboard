@@ -13,15 +13,18 @@
     <div class="page-width">
       <a class="back-link" href="index.html">← Zur Startseite</a>
       <h1>Gemeinsame Karte</h1>
-      <p>Schalte Erdbeben und Klima-Orte ein oder aus und wähle eine Hintergrundkarte.</p>
+      <p>Wähle passende Kartenebenen aus und erkunde offene Geodaten.</p>
     </div>
   </header>
   <main class="page-width">
     <p id="feed-status" class="status" role="status" aria-live="polite">Erdbebendaten werden geladen …</p>
     <section aria-labelledby="map-heading">
       <h2 id="map-heading">Karte und Themenebenen</h2>
-      <p class="help-text">Über die Ebenenauswahl oben rechts kannst du die Hintergrundkarte und Themen ändern. Wähle einen Klima-Ort, um sein Walter-Lieth-Diagramm zu öffnen.</p>
-      <div id="dashboard-map" class="map" role="region" aria-label="Interaktive Karte mit auswählbaren Erdbeben- und Klima-Orte-Layern" tabindex="0"></div>
+      <p class="help-text">Wähle in der Ebenenauswahl eine Hintergrundkarte und die Themen, die auf der Karte erscheinen sollen. Wähle einen Klima-Ort, um sein Walter-Lieth-Diagramm zu öffnen.</p>
+      <div class="map-layout">
+        <aside id="map-layer-controls" class="layer-panel" aria-label="Kartenebenen auswählen"></aside>
+        <div id="dashboard-map" class="map" role="region" aria-label="Interaktive Karte mit auswählbaren Erdbeben- und Klima-Orte-Layern" tabindex="0"></div>
+      </div>
     </section>
     <section class="source-note" aria-labelledby="source-heading">
       <h2 id="source-heading">Quellen und Lizenzen</h2>
