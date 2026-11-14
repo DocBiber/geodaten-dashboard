@@ -40,6 +40,7 @@
       <h2 id="chart-heading">Klima im Jahresverlauf</h2>
       <div class="climate-summary">
         <h3 id="selected-place">Noch kein Ort ausgewählt</h3>
+        <p id="selected-location-meta" class="help-text">Koordinaten und Höhe erscheinen nach der Auswahl eines Ortes.</p>
         <p id="climate-summary-text">Jahresmitteltemperatur und Jahresniederschlag erscheinen hier.</p>
       </div>
       <p id="chart-description" class="help-text">Monatsmittel der Temperatur und mittlere Monatssummen des Niederschlags über fünf vollständige Jahre. Die Skalen stehen im Verhältnis 10 °C zu 20 mm.</p>
@@ -51,12 +52,13 @@
     <section class="source-note" aria-labelledby="source-heading">
       <h2 id="source-heading">Quellen und Zeitraum</h2>
       <p>Klimadaten: <a href="https://open-meteo.com/">Open-Meteo Archive API</a>, lizenziert unter <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Angezeigt werden die letzten fünf vollständigen Kalenderjahre. Die Werte sind langjährige Monatsmittel und keine Vorhersage.</p>
-      <p>Ortssuche und Kartendaten: <a href="https://www.openstreetmap.org/copyright">OpenStreetMap-Mitwirkende</a>. Die Quellen der auswählbaren Hintergrundkarten stehen jeweils direkt auf der Karte.</p>
+      <p>Stadtnamen für die Ortsangabe: <a href="https://github.com/nvkelso/natural-earth-vector/tree/master/geojson">Natural Earth, Populated Places</a> (gemeinfrei). Ortssuche und Kartendaten: <a href="https://www.openstreetmap.org/copyright">OpenStreetMap-Mitwirkende</a>. Die Quellen der auswählbaren Hintergrundkarten stehen jeweils direkt auf der Karte.</p>
     </section>
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="../assets/basemaps.js"></script>
+  <script src="../assets/ortsname.js"></script>
   <script src="../assets/klima.js"></script>
 </body>
 </html>
