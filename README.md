@@ -8,13 +8,17 @@ Auf der [Erdbebenkarte](module/erdbeben.html) siehst du Erdbeben weltweit aus de
 
 Die Daten kommen direkt aus dem [USGS-GeoJSON-Feed](https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson) (gemeinfrei). Die Seite benötigt eine Internetverbindung, um die Daten, Kartenkacheln und Bibliotheken zu laden.
 
+Auf der [gemeinsamen Karte](karte.html) kannst du Erdbeben, Klima-Orte und Städte als Ebenen ein- und ausblenden. Für Städte lässt sich die Einwohnerzahl logarithmisch filtern. Die Einwohnerwerte sind Näherungswerte, teils einschließlich Ballungsraum. Ein Link im Stadt-Popup öffnet das Walter-Lieth-Diagramm.
+
+Die Städtedaten werden aus Natural Earths gemeinfreien „Populated Places“ erzeugt. Zum Aktualisieren von `data/staedte.json` genügt `node scripts/build_staedte.mjs`; optional kannst du den Pfad zu einer lokalen `ne_10m_populated_places.geojson` als Argument übergeben.
+
 ## Kartenauswahl
 
-Auf den Karten kannst du oben rechts zwischen OpenStreetMap, OpenTopoMap, Esri World Imagery und CartoDB Positron wechseln. Die Quellenangaben stehen jeweils direkt auf der Karte. Die zuletzt gewählte Hintergrundkarte wird im Browser gespeichert, sofern dieser das zulässt.
+Auf den Karten kannst du oben rechts zwischen OpenStreetMap, OpenTopoMap, Esri World Imagery und CartoDB Positron wechseln. Die Quellenangaben stehen jeweils direkt auf der Karte. Die zuletzt gewählte Hintergrundkarte und auf der gemeinsamen Karte aktive Themenebenen werden im Browser gespeichert, sofern dieser das zulässt.
 
 ## Klimakarte und Walter-Lieth-Diagramm
 
-Im [Klimamodul](module/klima.html) kannst du Klima-Orte nach Jahresmitteltemperatur, Jahresniederschlag oder Temperaturamplitude einfärben und mit dem Wertebereich filtern. Klicke einen Marker an, suche einen Ort oder wähle einen Punkt auf der Karte. Das Walter-Lieth-Diagramm zeigt die Monatsmitteltemperatur und die mittleren Monatssummen des Niederschlags von 2015 bis 2024. Bis 100 mm gilt das Verhältnis 10 °C zu 20 mm; darüber wird der Niederschlag im Verhältnis 1:10 gestaucht. Erdbeben- und Klima-Layer lassen sich auf der Karte einzeln ein- und ausblenden.
+Im [Klimamodul](module/klima.html) kannst du Klima-Orte nach Jahresmitteltemperatur, Jahresniederschlag oder Temperaturamplitude einfärben und mit dem Wertebereich filtern. Klicke einen Marker an, suche einen Ort oder wähle einen Punkt auf der Karte; der Messpunkt lässt sich auch verschieben. Das Walter-Lieth-Diagramm zeigt die Monatsmitteltemperatur und die mittleren Monatssummen des Niederschlags von 2015 bis 2024. Bis 100 mm gilt das Verhältnis 10 °C zu 20 mm; darüber wird der Niederschlag im Verhältnis 1:10 gestaucht. Angezeigt werden außerdem nächstgelegener Stadtname, Koordinaten und Höhe.
 
 Die Ortsliste steht in `data/orte.json`. `node scripts/build_klimadaten.mjs` lädt Tageswerte aus der [Open-Meteo Archive API](https://open-meteo.com/) für 2015 bis 2024, berechnet die Kennwerte und aktualisiert `data/klimadaten.json`. Das Skript benötigt Node.js 20 und keine zusätzlichen Pakete. Bei einem Fehler oder Rate-Limit bleibt die bisherige Datei erhalten. Die Daten stehen unter [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 

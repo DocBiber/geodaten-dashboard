@@ -4,6 +4,7 @@ const climateStatus = document.getElementById("climate-status");
 const placeSearch = document.getElementById("place-search");
 const placeQuery = document.getElementById("place-query");
 const selectedPlace = document.getElementById("selected-place");
+const selectedLocationMeta = document.getElementById("selected-location-meta");
 const climateSummary = document.getElementById("climate-summary-text");
 const climateMetric = document.getElementById("climate-metric");
 const minimumInput = document.getElementById("climate-min");
@@ -14,18 +15,44 @@ addBasemapControl(climateMap);
 
 const climateLayer = L.layerGroup().addTo(climateMap);
 const earthquakeLayer = L.layerGroup();
-L.control.layers(null, { "Klima-Orte": climateLayer, Erdbeben: earthquakeLayer }).addTo(climateMap);
+const selectedPointLayer = L.layerGroup().addTo(climateMap);
+L.control.layers(null, {
+  "Klima-Orte": climateLayer,
+  Erdbeben: earthquakeLayer,
+  "Ausgewählter Ort": selectedPointLayer
+}).addTo(climateMap);
 
 const monthLabels = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 const numberFormat = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
 const METRICS = {
-  annualMeanTemperature_C: { unit: "°C", name: "Jahresmitteltemperatur" },
-  annualPrecipitation_mm: { unit: "mm", name: "Jahresniederschlag" },
-  temperatureAmplitude_C: { unit: "°C", name: "Temperaturamplitude" }
+  annualMeanTemperature_C: { unit: "°C" },
+  annualPrecipitation_mm: { unit: "mm" },
+  temperatureAmplitude_C: { unit: "°C" }
 };
 let climatePlaces = [];
 let climateChart;
+let activeController;
 let activeRequest = 0;
+let cities = [];
+let currentPoint;
+const climateCache = new Map();
+
+function coordinatesName(latitude, longitude) {
+  return `Koordinaten: ${numberFormat.format(latitude)}° ${latitude >= 0 ? "N" : "S"}, ${numberFormat.format(longitude)}° ${longitude >= 0 ? "O" : "W"}`;
+}
+
+function updatePointName(latitude, longitude, name) {
+  selectedPlace.textContent = name || (cities.length && typeof globalThis.ortsname === "function"
+    ? globalThis.ortsname(latitude, longitude, cities)
+    : coordinatesName(latitude, longitude));
+}
+
+function updateLocationMeta(latitude, longitude, elevation) {
+  const height = elevation === undefined
+    ? "Höhe wird geladen …"
+    : Number.isFinite(elevation) ? `Höhe: ${numberFormat.format(elevation)} m` : "Höhe: nicht verfügbar";
+  selectedLocationMeta.textContent = `${coordinatesName(latitude, longitude)} · ${height}`;
+}
 
 function setClimateStatus(message, isError = false) {
   climateStatus.textContent = message;
@@ -102,8 +129,11 @@ function updateClimateLayer() {
 }
 
 function showPlace(place) {
+  activeController?.abort();
   activeRequest += 1;
+  currentPoint = { latitude: place.latitude, longitude: place.longitude, name: place.name };
   selectedPlace.textContent = `${place.name}, ${place.land || "Land unbekannt"}`;
+  updateLocationMeta(place.latitude, place.longitude, place.elevation_m);
   climateSummary.textContent =
     `Höhe: ${Number.isFinite(place.elevation_m) ? `${numberFormat.format(place.elevation_m)} m` : "keine Angabe"} · ` +
     `Jahresmitteltemperatur: ${numberFormat.format(place.annualMeanTemperature_C)} °C · ` +
@@ -134,7 +164,8 @@ const highRainfallPlugin = {
       const { x, y } = points[index].getProps(["x", "y"], true);
       const left = index === 0 ? chartArea.left : (points[index - 1].x + x) / 2;
       const right = index === points.length - 1 ? chartArea.right : (x + points[index + 1].x) / 2;
-      ctx.fillRect(left, Math.max(y, chartArea.top), right - left, Math.max(0, threshold - Math.max(y, chartArea.top)));
+      const top = Math.max(y, chartArea.top);
+      ctx.fillRect(left, top, right - left, Math.max(0, threshold - top));
     }
     ctx.restore();
   }
@@ -256,7 +287,7 @@ function summarizeLiveData(data) {
     return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
   });
   if (monthlyMeanTemperature.some((value) => value === null) ||
-      meanMonthlyPrecipitation.some((value) => value === null) || !annualTemperatures.length) {
+      meanMonthlyPrecipitation.some((value) => value === null) || !annualTemperatures.length || !annualRainfall.size) {
     throw new Error("Unvollständige Messwerte");
   }
   return {
@@ -267,35 +298,77 @@ function summarizeLiveData(data) {
   };
 }
 
-async function loadClimate(latitude, longitude, name) {
+function selectPlace(latitude, longitude, name) {
+  activeController?.abort();
+  selectedPointLayer.clearLayers();
+  const marker = L.marker([latitude, longitude], { draggable: true }).addTo(selectedPointLayer);
+  marker.on("dragend", () => {
+    const position = marker.getLatLng();
+    selectPlace(position.lat, position.lng);
+  });
+  currentPoint = { latitude, longitude, name };
+  updatePointName(latitude, longitude, name);
+  updateLocationMeta(latitude, longitude);
+  loadClimate(latitude, longitude);
+}
+
+async function loadClimate(latitude, longitude) {
+  activeController?.abort();
+  const controller = new AbortController();
+  activeController = controller;
   const requestId = ++activeRequest;
+  const requestLatitude = Number(latitude.toFixed(1));
+  const requestLongitude = Number(longitude.toFixed(1));
+  const cacheKey = `${requestLatitude},${requestLongitude}`;
+  const firstYear = 2015;
+  const lastYear = 2024;
   const parameters = new URLSearchParams({
-    latitude: String(latitude),
-    longitude: String(longitude),
-    start_date: "2015-01-01",
-    end_date: "2024-12-31",
+    latitude: String(requestLatitude),
+    longitude: String(requestLongitude),
+    start_date: `${firstYear}-01-01`,
+    end_date: `${lastYear}-12-31`,
     daily: "temperature_2m_mean,precipitation_sum",
     timezone: "UTC"
   });
-  setClimateStatus("Klimadaten für 2015 bis 2024 werden geladen …");
+
+  setClimateStatus(`Klimadaten für ${firstYear} bis ${lastYear} werden geladen …`);
   try {
-    const response = await fetch(`https://archive-api.open-meteo.com/v1/archive?${parameters}`);
+    const cachedData = climateCache.get(cacheKey);
+    if (cachedData) {
+      displayLiveClimate(cachedData, latitude, longitude);
+      setClimateStatus("Klimadaten aus dem Zwischenspeicher wurden geladen.");
+      return;
+    }
+    const response = await fetch(`https://archive-api.open-meteo.com/v1/archive?${parameters}`, {
+      signal: controller.signal
+    });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
+    if (controller.signal.aborted || requestId !== activeRequest) return;
     const summary = summarizeLiveData(data);
-    if (requestId !== activeRequest) return;
     const livePlace = {
       ...summary,
-      name,
-      land: "Kartenpunkt",
-      elevation_m: Number.isFinite(data.elevation) ? data.elevation : null
+      elevation_m: Number.isFinite(data.elevation) ? data.elevation : null,
+      firstYear,
+      lastYear
     };
-    showPlace(livePlace);
+    climateCache.set(cacheKey, livePlace);
+    displayLiveClimate(livePlace, latitude, longitude);
+    setClimateStatus("Klimadaten wurden geladen.");
   } catch (error) {
-    if (requestId !== activeRequest) return;
+    if (controller.signal.aborted || requestId !== activeRequest) return;
     console.error("Klimadaten konnten nicht geladen werden.", error);
+    updateLocationMeta(latitude, longitude, null);
     setClimateStatus("Die Klimadaten konnten nicht geladen werden. Bitte prüfe deine Internetverbindung oder wähle einen anderen Ort.", true);
   }
+}
+
+function displayLiveClimate(data, latitude, longitude) {
+  updateLocationMeta(latitude, longitude, data.elevation_m);
+  climateSummary.textContent =
+    `Jahresmitteltemperatur: ${numberFormat.format(data.annualMeanTemperature_C)} °C · ` +
+    `Jahresniederschlag: ${numberFormat.format(data.annualPrecipitation_mm)} mm · Zeitraum: ${data.firstYear}–${data.lastYear}`;
+  drawClimateChart(data.monthlyMeanTemperature_C, data.meanMonthlyPrecipitation_mm);
 }
 
 async function loadEarthquakes() {
@@ -344,7 +417,6 @@ async function loadClimatePlaces() {
       setClimateStatus("Die vorberechneten Klimadaten sind noch nicht verfügbar. Du kannst einen Ort suchen oder auf die Karte klicken.", true);
       return;
     }
-    climateMap.addLayer(climateLayer);
     setFilterBounds(true);
     updateClimateLayer();
     setClimateStatus(`Klimadaten für ${climatePlaces.length} Orte wurden geladen.`);
@@ -372,9 +444,22 @@ document.getElementById("reset-climate-filter").addEventListener("click", () => 
   updateClimateLayer();
 });
 
-climateMap.on("click", (event) => {
-  loadClimate(event.latlng.lat, event.latlng.lng, `Koordinaten: ${numberFormat.format(event.latlng.lat)}°, ${numberFormat.format(event.latlng.lng)}°`);
-});
+climateMap.on("click", (event) => selectPlace(event.latlng.lat, event.latlng.lng));
+
+fetch("../data/staedte.json")
+  .then((response) => {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  })
+  .then((data) => {
+    if (!Array.isArray(data)) throw new Error("Ungültiges Datenformat");
+    cities = data;
+    globalThis.staedte = data;
+    if (currentPoint && !currentPoint.name) {
+      updatePointName(currentPoint.latitude, currentPoint.longitude);
+    }
+  })
+  .catch((error) => console.error("Städtenamen konnten nicht geladen werden.", error));
 
 placeSearch.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -394,12 +479,22 @@ placeSearch.addEventListener("submit", async (event) => {
     const latitude = Number(result.lat);
     const longitude = Number(result.lon);
     climateMap.setView([latitude, longitude], 8);
-    loadClimate(latitude, longitude, result.name || result.display_name);
+    selectPlace(latitude, longitude, result.name || result.display_name);
   } catch (error) {
     console.error("Die Ortssuche ist fehlgeschlagen.", error);
     setClimateStatus("Die Ortssuche funktioniert gerade nicht. Bitte versuche es später erneut oder klicke auf die Karte.", true);
   }
 });
+
+const placeParameters = new URLSearchParams(window.location.search);
+const initialLatitude = Number(placeParameters.get("lat"));
+const initialLongitude = Number(placeParameters.get("lon"));
+if (Number.isFinite(initialLatitude) && initialLatitude >= -90 && initialLatitude <= 90 &&
+    Number.isFinite(initialLongitude) && initialLongitude >= -180 && initialLongitude <= 180 &&
+    placeParameters.has("lat") && placeParameters.has("lon")) {
+  climateMap.setView([initialLatitude, initialLongitude], 8);
+  selectPlace(initialLatitude, initialLongitude, placeParameters.get("name"));
+}
 
 loadClimatePlaces();
 loadEarthquakes();
