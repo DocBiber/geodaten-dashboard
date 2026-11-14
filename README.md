@@ -8,9 +8,11 @@ Auf der [Erdbebenkarte](module/erdbeben.html) siehst du Erdbeben weltweit aus de
 
 Die Daten kommen direkt aus dem [USGS-GeoJSON-Feed](https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson) (gemeinfrei). Die Seite benötigt eine Internetverbindung, um die Daten, Kartenkacheln und Bibliotheken zu laden.
 
+Auf der [gemeinsamen Karte](karte.html) kannst du Erdbeben und Klima-Orte als Ebenen ein- und ausblenden. Bei den Klima-Orten führt ein Link zum Walter-Lieth-Diagramm des jeweiligen Orts.
+
 ## Kartenauswahl
 
-Auf den Karten kannst du oben rechts zwischen OpenStreetMap, OpenTopoMap, Esri World Imagery und CartoDB Positron wechseln. Die Quellenangaben stehen jeweils direkt auf der Karte. Die zuletzt gewählte Hintergrundkarte wird im Browser gespeichert, sofern dieser das zulässt.
+Auf den Karten kannst du oben rechts zwischen OpenStreetMap, OpenTopoMap, Esri World Imagery und CartoDB Positron wechseln. Die Quellenangaben stehen jeweils direkt auf der Karte. Die zuletzt gewählte Hintergrundkarte und auf der gemeinsamen Karte aktive Themenebenen werden im Browser gespeichert, sofern dieser das zulässt.
 
 ## Klimadiagramm
 

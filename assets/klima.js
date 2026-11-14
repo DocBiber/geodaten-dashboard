@@ -217,3 +217,12 @@ placeSearch.addEventListener("submit", async (event) => {
     setClimateStatus("Die Ortssuche funktioniert gerade nicht. Bitte versuche es später erneut oder klicke auf die Karte.", true);
   }
 });
+
+const placeParameters = new URLSearchParams(window.location.search);
+const initialLatitude = Number(placeParameters.get("lat"));
+const initialLongitude = Number(placeParameters.get("lon"));
+if (Number.isFinite(initialLatitude) && initialLatitude >= -90 && initialLatitude <= 90 &&
+    Number.isFinite(initialLongitude) && initialLongitude >= -180 && initialLongitude <= 180) {
+  climateMap.setView([initialLatitude, initialLongitude], 8);
+  selectPlace(initialLatitude, initialLongitude, placeParameters.get("name"));
+}
