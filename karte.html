@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Gemeinsame Karte mit Erdbeben, Klima-Orten und auswählbaren Hintergrundkarten.">
+  <title>Gemeinsame Karte – Geodaten-Dashboard</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-width">
+      <a class="back-link" href="index.html">← Zur Startseite</a>
+      <h1>Gemeinsame Karte</h1>
+      <p>Schalte Erdbeben und Klima-Orte ein oder aus und wähle eine Hintergrundkarte.</p>
+    </div>
+  </header>
+  <main class="page-width">
+    <p id="feed-status" class="status" role="status" aria-live="polite">Erdbebendaten werden geladen …</p>
+    <section aria-labelledby="map-heading">
+      <h2 id="map-heading">Karte und Themenebenen</h2>
+      <p class="help-text">Über die Ebenenauswahl oben rechts kannst du die Hintergrundkarte und Themen ändern. Wähle einen Klima-Ort, um sein Walter-Lieth-Diagramm zu öffnen.</p>
+      <div id="dashboard-map" class="map" role="region" aria-label="Interaktive Karte mit auswählbaren Erdbeben- und Klima-Orte-Layern" tabindex="0"></div>
+    </section>
+    <section class="source-note" aria-labelledby="source-heading">
+      <h2 id="source-heading">Quellen und Lizenzen</h2>
+      <p>Erdbeben: <a href="https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson">USGS Earthquake Hazards Program</a> (gemeinfrei). Klimadiagramme: <a href="https://open-meteo.com/">Open-Meteo Archive API</a> (CC BY 4.0). Die Namen und Standorte der Klima-Orte sind Beispiele; Koordinaten dienen der Orientierung.</p>
+      <p>Die Quellenangaben der Hintergrundkarten erscheinen direkt auf der Karte. <a href="module/erdbeben.html">Erdbebenkarte mit Filter und Diagramm</a> · <a href="module/klima.html">Klimadiagramm für einen frei wählbaren Ort</a>.</p>
+    </section>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="assets/basemaps.js"></script>
+  <script src="assets/layer-erdbeben.js"></script>
+  <script src="assets/layer-klima-orte.js"></script>
+  <script src="assets/karte.js"></script>
+</body>
+</html>
