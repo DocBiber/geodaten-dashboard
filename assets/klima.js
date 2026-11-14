@@ -123,7 +123,7 @@ function precipitationFromScale(value) {
 const highRainfallPlugin = {
   id: "highRainfallArea",
   beforeDatasetsDraw(chart) {
-    const precipitation = chart.data.datasets[1].data;
+    const precipitation = chart.data.rawPrecipitation;
     const points = chart.getDatasetMeta(1).data;
     const threshold = chart.scales.y.getPixelForValue(50);
     const { ctx, chartArea } = chart;
@@ -157,6 +157,7 @@ function drawClimateChart(temperatures, precipitation) {
     plugins: [highRainfallPlugin],
     data: {
       labels: monthLabels,
+      rawPrecipitation: precipitation,
       datasets: [
         {
           label: "Temperatur (°C)",
