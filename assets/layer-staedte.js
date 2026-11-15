@@ -3,19 +3,10 @@
 function createCitiesLayer({ controls, statusElement }) {
   const layer = L.layerGroup();
   const numberFormat = new Intl.NumberFormat("de-DE");
-  const sliderSteps = 10000;
   const minimumPopulation = 1;
   let cities = [];
   let maximumPopulation = 1;
-  let lowerValue = 0;
-  let upperValue = sliderSteps;
   let markers = [];
-
-  const populationAt = (value) => Math.round(
-    minimumPopulation * (maximumPopulation / minimumPopulation) ** (value / sliderSteps)
-  );
-  const sliderAt = (population) =>
-    Math.log(population / minimumPopulation) / Math.log(maximumPopulation / minimumPopulation) * sliderSteps;
 
   const filterPanel = document.createElement("section");
   filterPanel.className = "city-filter";
@@ -26,44 +17,14 @@ function createCitiesLayer({ controls, statusElement }) {
   const description = document.createElement("p");
   description.className = "help-text";
   description.textContent = "Einwohnerzahl (logarithmische Skala)";
-  const slider = document.createElement("div");
-  slider.className = "city-slider";
-  const lower = document.createElement("input");
-  lower.type = "range";
-  lower.min = "0";
-  lower.max = String(sliderSteps);
-  lower.step = "any";
-  lower.value = "0";
-  lower.setAttribute("aria-label", "Mindestens so viele Einwohner");
-  lower.className = "city-slider-lower";
-  const upper = document.createElement("input");
-  upper.type = "range";
-  upper.min = "0";
-  upper.max = String(sliderSteps);
-  upper.step = "any";
-  upper.value = String(sliderSteps);
-  upper.setAttribute("aria-label", "Höchstens so viele Einwohner");
-  upper.className = "city-slider-upper";
-  slider.append(lower, upper);
-  const rangeLabel = document.createElement("p");
-  rangeLabel.className = "city-range-label";
-  const lowerOutput = document.createElement("span");
-  const upperOutput = document.createElement("span");
-  rangeLabel.append("Von ", lowerOutput, " bis ", upperOutput, " Einwohner");
+  const sliderContainer = document.createElement("div");
   const count = document.createElement("p");
   count.className = "city-count";
   count.setAttribute("aria-live", "polite");
-  const reset = document.createElement("button");
-  reset.type = "button";
-  reset.textContent = "Zurücksetzen";
-  filterPanel.append(heading, description, slider, rangeLabel, count, reset);
+  filterPanel.append(heading, description, sliderContainer, count);
   controls.append(filterPanel);
 
-  function updateFilter() {
-    const minPopulation = populationAt(lowerValue);
-    const maxPopulation = populationAt(upperValue);
-    lowerOutput.textContent = numberFormat.format(minPopulation);
-    upperOutput.textContent = numberFormat.format(maxPopulation);
+  function updateFilter(minPopulation, maxPopulation) {
     let visibleCount = 0;
     for (const { city, marker } of markers) {
       const visible = city.population >= minPopulation && city.population <= maxPopulation;
@@ -76,25 +37,18 @@ function createCitiesLayer({ controls, statusElement }) {
         layer.removeLayer(marker);
       }
     }
-    count.textContent = `${numberFormat.format(visibleCount)} Städte`;
+    count.textContent = `${numberFormat.format(visibleCount)} von ${numberFormat.format(markers.length)} Städten`;
   }
 
-  lower.addEventListener("input", () => {
-    lowerValue = Math.min(Number(lower.value), upperValue);
-    lower.value = String(lowerValue);
-    updateFilter();
-  });
-  upper.addEventListener("input", () => {
-    upperValue = Math.max(Number(upper.value), lowerValue);
-    upper.value = String(upperValue);
-    updateFilter();
-  });
-  reset.addEventListener("click", () => {
-    lowerValue = Math.min(sliderAt(1_000_000), sliderSteps);
-    upperValue = sliderSteps;
-    lower.value = String(lowerValue);
-    upper.value = String(upperValue);
-    updateFilter();
+  const rangeSlider = RangeSlider.createRangeSlider({
+    container: sliderContainer,
+    minimum: minimumPopulation,
+    maximum: minimumPopulation,
+    initialMinimum: minimumPopulation,
+    initialMaximum: minimumPopulation,
+    logarithmic: true,
+    formatValue: (value) => numberFormat.format(value),
+    onChange: ({ minimum, maximum }) => updateFilter(minimum, maximum)
   });
 
   statusElement.textContent = "Städtedaten werden geladen …";
@@ -114,10 +68,6 @@ function createCitiesLayer({ controls, statusElement }) {
       }
       cities = data;
       maximumPopulation = Math.max(...cities.map((city) => city.population), minimumPopulation);
-      lowerValue = Math.min(sliderAt(1_000_000), sliderSteps);
-      lower.value = String(lowerValue);
-      upperValue = sliderSteps;
-      upper.value = String(upperValue);
       const renderer = L.canvas();
       markers = cities.map((city) => {
         const marker = L.circleMarker([city.latitude, city.longitude], {
@@ -147,7 +97,12 @@ function createCitiesLayer({ controls, statusElement }) {
         return { city, marker };
       });
       statusElement.textContent = "Städtedaten wurden geladen.";
-      updateFilter();
+      rangeSlider.setBounds(
+        minimumPopulation,
+        maximumPopulation,
+        Math.min(1_000_000, maximumPopulation),
+        maximumPopulation
+      );
     })
     .catch((error) => {
       console.error("Städtedaten konnten nicht geladen werden.", error);
