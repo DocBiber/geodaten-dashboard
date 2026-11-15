@@ -1,6 +1,7 @@
 "use strict";
 
 const climateStatus = document.getElementById("climate-status");
+const climateErrorDetail = document.getElementById("climate-error-detail");
 const placeSearch = document.getElementById("place-search");
 const placeQuery = document.getElementById("place-query");
 const selectedPlace = document.getElementById("selected-place");
@@ -57,6 +58,29 @@ function updateLocationMeta(latitude, longitude, elevation) {
 function setClimateStatus(message, isError = false) {
   climateStatus.textContent = message;
   climateStatus.classList.toggle("status-error", isError);
+  climateErrorDetail.textContent = "";
+  climateErrorDetail.hidden = true;
+}
+
+function setClimateError(message, detail) {
+  setClimateStatus(message, true);
+  climateErrorDetail.textContent = detail;
+  climateErrorDetail.hidden = false;
+}
+
+async function checkResponse(response, url) {
+  if (response.ok) return;
+  const body = await response.text();
+  let detail = body;
+  try {
+    const parsedBody = JSON.parse(body);
+    detail = parsedBody.reason || parsedBody.message || body;
+  } catch {
+    // Keep a plain-text API error if the response is not JSON.
+  }
+  const error = new Error(`HTTP ${response.status}${detail ? ` – ${detail.slice(0, 300)}` : ""}`);
+  error.url = url;
+  throw error;
 }
 
 function climateColor(value, minimum, maximum) {
@@ -330,6 +354,7 @@ async function loadClimate(latitude, longitude) {
     daily: "temperature_2m_mean,precipitation_sum",
     timezone: "UTC"
   });
+  const apiUrl = `https://archive-api.open-meteo.com/v1/archive?${parameters}`;
 
   setClimateStatus(`Klimadaten für ${firstYear} bis ${lastYear} werden geladen …`);
   try {
@@ -339,10 +364,10 @@ async function loadClimate(latitude, longitude) {
       setClimateStatus("Klimadaten aus dem Zwischenspeicher wurden geladen.");
       return;
     }
-    const response = await fetch(`https://archive-api.open-meteo.com/v1/archive?${parameters}`, {
+    const response = await fetch(apiUrl, {
       signal: controller.signal
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await checkResponse(response, apiUrl);
     const data = await response.json();
     if (controller.signal.aborted || requestId !== activeRequest) return;
     const summary = summarizeLiveData(data);
@@ -359,7 +384,10 @@ async function loadClimate(latitude, longitude) {
     if (controller.signal.aborted || requestId !== activeRequest) return;
     console.error("Klimadaten konnten nicht geladen werden.", error);
     updateLocationMeta(latitude, longitude, null);
-    setClimateStatus("Die Klimadaten konnten nicht geladen werden. Bitte prüfe deine Internetverbindung oder wähle einen anderen Ort.", true);
+    setClimateError(
+      "Die Klimadaten konnten nicht geladen werden. Bitte prüfe deine Internetverbindung oder wähle einen anderen Ort.",
+      `${error.url || apiUrl} · ${error.message}`
+    );
   }
 }
 
@@ -398,9 +426,10 @@ async function loadEarthquakes() {
 }
 
 async function loadClimatePlaces() {
+  const dataUrl = "../data/klimadaten.json";
   try {
-    const response = await fetch("../data/klimadaten.json");
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const response = await fetch(dataUrl);
+    await checkResponse(response, dataUrl);
     const data = await response.json();
     climatePlaces = Array.isArray(data.places)
       ? data.places.filter((place) =>
@@ -413,8 +442,32 @@ async function loadClimatePlaces() {
       )
       : [];
     if (!climatePlaces.length) {
-      climateCount.textContent = "0 von 0 Orten werden angezeigt.";
-      setClimateStatus("Die vorberechneten Klimadaten sind noch nicht verfügbar. Du kannst einen Ort suchen oder auf die Karte klicken.", true);
+      const placeUrl = "../data/orte.json";
+      const placeResponse = await fetch(placeUrl);
+      await checkResponse(placeResponse, placeUrl);
+      const places = await placeResponse.json();
+      if (!Array.isArray(places) || !places.length) {
+        throw new Error(`${placeUrl} · Die Datei enthält keine Klima-Orte.`);
+      }
+      for (const place of places) {
+        if (!Number.isFinite(place.latitude) || !Number.isFinite(place.longitude)) continue;
+        const marker = L.circleMarker([place.latitude, place.longitude], {
+          radius: 7,
+          color: "#172033",
+          weight: 1,
+          fillColor: "#0e7c86",
+          fillOpacity: 0.9,
+          bubblingMouseEvents: false
+        });
+        marker.bindTooltip(place.name);
+        marker.on("click", () => selectPlace(place.latitude, place.longitude, place.name));
+        climateLayer.addLayer(marker);
+      }
+      climateCount.textContent = `${places.length} Orte für Live-Klimadiagramme verfügbar.`;
+      setClimateError(
+        "Vorgefertigte Klimadaten fehlen. Wähle einen Klima-Ort, um das Diagramm live zu laden.",
+        `${dataUrl} · Die Datei enthält keine gültigen Klima-Orte. Orte: ${placeUrl}.`
+      );
       return;
     }
     setFilterBounds(true);
@@ -423,7 +476,10 @@ async function loadClimatePlaces() {
   } catch (error) {
     console.error("Die vorberechneten Klimadaten konnten nicht geladen werden.", error);
     climateCount.textContent = "Die Klimadaten konnten nicht geladen werden.";
-    setClimateStatus("Die vorberechneten Klimadaten konnten nicht geladen werden. Du kannst einen Ort suchen oder auf die Karte klicken.", true);
+    setClimateError(
+      "Die vorberechneten Klimadaten konnten nicht geladen werden. Du kannst einen Ort suchen oder auf die Karte klicken.",
+      `${error.url || dataUrl} · ${error.message}`
+    );
   }
 }
 

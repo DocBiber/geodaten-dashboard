@@ -70,7 +70,7 @@ export function summarizeDailyData(place, response) {
   };
 }
 
-async function fetchPlace(place) {
+export async function fetchPlace(place) {
   const parameters = new URLSearchParams({
     latitude: String(place.latitude),
     longitude: String(place.longitude),
@@ -84,14 +84,25 @@ async function fetchPlace(place) {
     try {
       const response = await fetch(`${API_URL}?${parameters}`);
       if (response.status === 429) {
-        const error = new Error("Open-Meteo hat ein Rate-Limit gemeldet (HTTP 429).");
-        error.rateLimited = true;
-        throw error;
+        if (attempt === MAX_ATTEMPTS) {
+          throw new Error("Open-Meteo hat nach mehreren Versuchen weiterhin HTTP 429 gemeldet.");
+        }
+        const retryAfter = response.headers.get("retry-after");
+        const retrySeconds = retryAfter === null ? Number.NaN : Number(retryAfter);
+        const retryDate = retryAfter === null ? Number.NaN : Date.parse(retryAfter);
+        const delay = Number.isFinite(retrySeconds)
+          ? Math.max(0, retrySeconds * 1000)
+          : Number.isFinite(retryDate)
+            ? Math.max(0, retryDate - Date.now())
+            : PAUSE_MS * attempt;
+        console.warn(`${place.name}: Rate-Limit (HTTP 429), neuer Versuch in ${delay} ms.`);
+        await pause(delay);
+        continue;
       }
       if (!response.ok) throw new Error(`Open-Meteo antwortete mit HTTP ${response.status}.`);
       return summarizeDailyData(place, await response.json());
     } catch (error) {
-      if (error.rateLimited || attempt === MAX_ATTEMPTS) throw error;
+      if (attempt === MAX_ATTEMPTS) throw error;
       console.warn(`${place.name}: Versuch ${attempt} fehlgeschlagen: ${error.message}`);
       await pause(PAUSE_MS * attempt);
     }
@@ -100,6 +111,9 @@ async function fetchPlace(place) {
 
 async function build() {
   const places = JSON.parse(await readFile(PLACES_FILE, "utf8"));
+  if (!Array.isArray(places) || !places.length) {
+    throw new Error("Die Ortsliste enthält keine Klima-Orte.");
+  }
   const climatePlaces = [];
   for (let index = 0; index < places.length; index += 1) {
     if (index) await pause(PAUSE_MS);
