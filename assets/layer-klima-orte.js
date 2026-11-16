@@ -135,9 +135,10 @@ function createClimatePlacesLayer({ controls, statusElement }) {
 
   metric.addEventListener("change", updateMetricBounds);
   statusElement.textContent = "Klimadaten werden geladen …";
-  fetch("data/klimadaten.json")
+  const dataUrl = "data/klimadaten.json";
+  fetch(dataUrl)
     .then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) throw new Error(`${dataUrl} · HTTP ${response.status}`);
       return response.json();
     })
     .then((data) => {
@@ -148,9 +149,7 @@ function createClimatePlacesLayer({ controls, statusElement }) {
       ));
       if (!places.length) {
         count.textContent = "0 von 0 Klima-Orten";
-        statusElement.textContent = "Die Klimadaten sind noch nicht verfügbar. Bitte versuche es später erneut.";
-        statusElement.classList.add("status-error");
-        return;
+        throw new Error(`${dataUrl} · Die Datei enthält keine gültigen Klima-Orte.`);
       }
       updateMetricBounds();
       statusElement.textContent = `Klimadaten für ${numberFormat.format(places.length)} Klima-Orte wurden geladen.`;
@@ -159,7 +158,7 @@ function createClimatePlacesLayer({ controls, statusElement }) {
     .catch((error) => {
       console.error("Klimadaten konnten nicht geladen werden.", error);
       count.textContent = "Die Klimadaten konnten nicht geladen werden.";
-      statusElement.textContent = "Die Klimadaten konnten nicht geladen werden. Bitte prüfe deine Internetverbindung und versuche es später erneut.";
+      statusElement.textContent = `Die Klimadaten konnten nicht geladen werden: ${error.message}`;
       statusElement.classList.add("status-error");
     });
 

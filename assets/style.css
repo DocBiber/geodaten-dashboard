@@ -206,6 +206,17 @@ input[type="range"] {
   background: #fff0ef;
 }
 
+.climate-error-detail {
+  display: block;
+  margin: -0.25rem 0 0.75rem;
+  overflow-wrap: anywhere;
+  color: #46546a;
+}
+
+.climate-error-detail[hidden] {
+  display: none;
+}
+
 .map {
   height: min(62vh, 34rem);
   min-height: 20rem;
@@ -501,6 +512,7 @@ input[type="range"] {
   .back-link,
   .controls,
   .status,
+  .climate-error-detail,
   .layer-panel {
     display: none;
   }
