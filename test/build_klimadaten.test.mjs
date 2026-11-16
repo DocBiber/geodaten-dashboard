@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
-import { fetchPlace, summarizeDailyData } from "../scripts/build_klimadaten.mjs";
+import {
+  buildClimateData,
+  fetchPlace,
+  MAX_PLACES_PER_RUN,
+  summarizeDailyData
+} from "../scripts/build_klimadaten.mjs";
 
 const place = { name: "Testort", land: "Testland", latitude: 0, longitude: 0 };
 
@@ -29,42 +37,157 @@ test("berechnet Monatsmittel, Monatssummenmittel und Jahreskennwerte", () => {
   assert.equal(result.temperatureAmplitude_C, 11);
 });
 
+test("rundet Monatswerte auf eine Dezimalstelle", () => {
+  const daily = dailyData();
+  daily.temperature_2m_mean.fill(1.26);
+  daily.precipitation_sum.fill(2.26);
+  const result = summarizeDailyData(place, { daily });
+
+  assert.deepEqual(result.monthlyMeanTemperature_C, Array(12).fill(1.3));
+  assert.deepEqual(result.meanMonthlyPrecipitation_mm, Array(12).fill(2.3));
+});
+
 test("lehnt unvollständige Tagesdaten ab", () => {
   const daily = dailyData();
   daily.precipitation_sum.pop();
   assert.throws(() => summarizeDailyData(place, { daily }), /Ungültige Tagesdaten/);
 });
 
-test("wiederholt Open-Meteo-Aufrufe nach HTTP 429 und nutzt die angegebenen Variablen", async () => {
+test("bricht Open-Meteo-Aufrufe bei HTTP 429 sofort ab", async () => {
   const originalFetch = globalThis.fetch;
-  const places = [
-    { name: "Neapel", latitude: 40.8518, longitude: 14.2681 },
-    { name: "Reykjavik", latitude: 64.1466, longitude: -21.9426 },
-    { name: "Manaus", latitude: -3.119, longitude: -60.0217 }
-  ];
+  const requestedPlace = { name: "Neapel", latitude: 40.8518, longitude: 14.2681 };
   let requests = 0;
   globalThis.fetch = async (url) => {
     const requestUrl = new URL(url);
     assert.equal(requestUrl.searchParams.get("start_date"), "2015-01-01");
     assert.equal(requestUrl.searchParams.get("end_date"), "2024-12-31");
     assert.equal(requestUrl.searchParams.get("daily"), "temperature_2m_mean,precipitation_sum");
-    requests += 1;
-    if (requests === 1) {
-      return new Response("", { status: 429, headers: { "Retry-After": "0" } });
-    }
-    const requestedPlace = places[requests - 2];
     assert.equal(requestUrl.searchParams.get("latitude"), String(requestedPlace.latitude));
     assert.equal(requestUrl.searchParams.get("longitude"), String(requestedPlace.longitude));
-    return new Response(JSON.stringify({ daily: dailyData() }));
+    requests += 1;
+    return new Response("", { status: 429 });
   };
 
   try {
-    for (const climatePlace of places) {
-      const result = await fetchPlace(climatePlace);
-      assert.equal(result.annualPrecipitation_mm, 24);
-    }
-    assert.equal(requests, places.length + 1);
+    await assert.rejects(fetchPlace(requestedPlace), /HTTP 429/);
+    assert.equal(requests, 1);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test("holt höchstens 90 fehlende Orte und überspringt gespeicherte Orte", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "klimadaten-test-"));
+  const placesFile = join(directory, "orte.json");
+  const outputFile = join(directory, "klimadaten.json");
+  const places = Array.from({ length: MAX_PLACES_PER_RUN + 3 }, (_, index) => ({
+    ...place,
+    name: `Ort ${index}`,
+    latitude: index
+  }));
+  const climateData = {
+    source: "Open-Meteo Archive API",
+    license: "CC BY 4.0",
+    period: { startYear: 2015, endYear: 2024 },
+    places: places.slice(0, 3)
+  };
+  await writeFile(placesFile, JSON.stringify(places));
+  await writeFile(outputFile, JSON.stringify(climateData));
+  let requests = 0;
+
+  try {
+    const result = await buildClimateData({
+      placesFile,
+      outputFile,
+      fetchClimatePlace: async (requestedPlace) => {
+        requests += 1;
+        return requestedPlace;
+      },
+      wait: async () => {},
+      log: () => {}
+    });
+    const saved = JSON.parse(await readFile(outputFile, "utf8"));
+
+    assert.equal(requests, MAX_PLACES_PER_RUN);
+    assert.equal(result.completed, MAX_PLACES_PER_RUN + 3);
+    assert.equal(saved.places.length, MAX_PLACES_PER_RUN + 3);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("speichert erfolgreiche Abrufe vor einem späteren Dauerfehler", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "klimadaten-test-"));
+  const placesFile = join(directory, "orte.json");
+  const outputFile = join(directory, "klimadaten.json");
+  const places = [
+    { ...place, name: "Erster Ort" },
+    { ...place, name: "Zweiter Ort", latitude: 1 }
+  ];
+  await writeFile(placesFile, JSON.stringify(places));
+  await writeFile(outputFile, JSON.stringify({
+    source: "Open-Meteo Archive API",
+    license: "CC BY 4.0",
+    period: { startYear: 2015, endYear: 2024 },
+    places: []
+  }));
+
+  try {
+    const result = await buildClimateData({
+      placesFile,
+      outputFile,
+      fetchClimatePlace: async (requestedPlace) => {
+        if (requestedPlace.name === "Zweiter Ort") throw new Error("HTTP 429");
+        return requestedPlace;
+      },
+      wait: async () => {},
+      log: () => {},
+      errorLog: () => {}
+    });
+    const saved = JSON.parse(await readFile(outputFile, "utf8"));
+
+    assert.equal(result.failed, true);
+    assert.equal(result.completed, 1);
+    assert.deepEqual(saved.places.map(({ name }) => name), ["Erster Ort"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rundet vorhandene Monatswerte auch ohne neue Abrufe", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "klimadaten-test-"));
+  const placesFile = join(directory, "orte.json");
+  const outputFile = join(directory, "klimadaten.json");
+  await writeFile(placesFile, JSON.stringify([place]));
+  await writeFile(outputFile, JSON.stringify({
+    source: "Open-Meteo Archive API",
+    license: "CC BY 4.0",
+    period: { startYear: 2015, endYear: 2024 },
+    places: [{
+      ...place,
+      monthlyMeanTemperature_C: [1.26],
+      meanMonthlyPrecipitation_mm: [2.26]
+    }]
+  }));
+  let requests = 0;
+
+  try {
+    const result = await buildClimateData({
+      placesFile,
+      outputFile,
+      fetchClimatePlace: async () => {
+        requests += 1;
+        return place;
+      },
+      log: () => {}
+    });
+    const saved = JSON.parse(await readFile(outputFile, "utf8"));
+
+    assert.equal(result.completed, 1);
+    assert.equal(requests, 0);
+    assert.deepEqual(saved.places[0].monthlyMeanTemperature_C, [1.3]);
+    assert.deepEqual(saved.places[0].meanMonthlyPrecipitation_mm, [2.3]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
   }
 });

@@ -10,12 +10,17 @@ const LAST_YEAR = 2024;
 const API_URL = "https://archive-api.open-meteo.com/v1/archive";
 const PAUSE_MS = 1100;
 const MAX_ATTEMPTS = 3;
+export const MAX_PLACES_PER_RUN = 90;
 
 const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function average(values) {
   const valid = values.filter(Number.isFinite);
   return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null;
+}
+
+function roundToOneDecimal(value) {
+  return Math.round(value * 10) / 10;
 }
 
 export function summarizeDailyData(place, response) {
@@ -62,8 +67,8 @@ export function summarizeDailyData(place, response) {
   return {
     ...place,
     elevation_m: Number.isFinite(response.elevation) ? response.elevation : null,
-    monthlyMeanTemperature_C: temperaturesByMonth,
-    meanMonthlyPrecipitation_mm: precipitationByMonth,
+    monthlyMeanTemperature_C: temperaturesByMonth.map(roundToOneDecimal),
+    meanMonthlyPrecipitation_mm: precipitationByMonth.map(roundToOneDecimal),
     annualMeanTemperature_C: annualMeanTemperature,
     annualPrecipitation_mm: annualMeanPrecipitation,
     temperatureAmplitude_C: Math.max(...temperaturesByMonth) - Math.min(...temperaturesByMonth)
@@ -84,57 +89,92 @@ export async function fetchPlace(place) {
     try {
       const response = await fetch(`${API_URL}?${parameters}`);
       if (response.status === 429) {
-        if (attempt === MAX_ATTEMPTS) {
-          throw new Error("Open-Meteo hat nach mehreren Versuchen weiterhin HTTP 429 gemeldet.");
-        }
-        const retryAfter = response.headers.get("retry-after");
-        const retrySeconds = retryAfter === null ? Number.NaN : Number(retryAfter);
-        const retryDate = retryAfter === null ? Number.NaN : Date.parse(retryAfter);
-        const delay = Number.isFinite(retrySeconds)
-          ? Math.max(0, retrySeconds * 1000)
-          : Number.isFinite(retryDate)
-            ? Math.max(0, retryDate - Date.now())
-            : PAUSE_MS * attempt;
-        console.warn(`${place.name}: Rate-Limit (HTTP 429), neuer Versuch in ${delay} ms.`);
-        await pause(delay);
-        continue;
+        const error = new Error("Open-Meteo hat HTTP 429 gemeldet.");
+        error.status = 429;
+        throw error;
       }
       if (!response.ok) throw new Error(`Open-Meteo antwortete mit HTTP ${response.status}.`);
       return summarizeDailyData(place, await response.json());
     } catch (error) {
-      if (attempt === MAX_ATTEMPTS) throw error;
+      if (attempt === MAX_ATTEMPTS || error.status === 429) throw error;
       console.warn(`${place.name}: Versuch ${attempt} fehlgeschlagen: ${error.message}`);
       await pause(PAUSE_MS * attempt);
     }
   }
 }
 
-async function build() {
-  const places = JSON.parse(await readFile(PLACES_FILE, "utf8"));
+function placeKey(place) {
+  return `${place.latitude.toFixed(5)},${place.longitude.toFixed(5)}`;
+}
+
+async function saveClimateData(file, data) {
+  const temporaryFile = `${file}.tmp`;
+  await writeFile(temporaryFile, `${JSON.stringify(data, null, 2)}\n`);
+  await rename(temporaryFile, file);
+}
+
+export async function buildClimateData({
+  placesFile = PLACES_FILE,
+  outputFile = OUTPUT_FILE,
+  fetchClimatePlace = fetchPlace,
+  wait = pause,
+  log = console.log,
+  errorLog = console.error,
+  maxPlaces = MAX_PLACES_PER_RUN
+} = {}) {
+  const places = JSON.parse(await readFile(placesFile, "utf8"));
   if (!Array.isArray(places) || !places.length) {
     throw new Error("Die Ortsliste enthält keine Klima-Orte.");
   }
-  const climatePlaces = [];
-  for (let index = 0; index < places.length; index += 1) {
-    if (index) await pause(PAUSE_MS);
-    console.log(`[${index + 1}/${places.length}] ${places[index].name}`);
-    climatePlaces.push(await fetchPlace(places[index]));
+  const climateData = JSON.parse(await readFile(outputFile, "utf8"));
+  if (!Array.isArray(climateData.places)) {
+    throw new Error("Die Klimadatei enthält keine gültige Ortsliste.");
   }
+  const climatePlaces = climateData.places;
+  let hasRoundedMonthlyValues = false;
+  for (const climatePlace of climatePlaces) {
+    for (const key of ["monthlyMeanTemperature_C", "meanMonthlyPrecipitation_mm"]) {
+      if (!Array.isArray(climatePlace[key])) continue;
+      climatePlace[key] = climatePlace[key].map((value) => {
+        if (!Number.isFinite(value)) return value;
+        const rounded = roundToOneDecimal(value);
+        if (rounded !== value) hasRoundedMonthlyValues = true;
+        return rounded;
+      });
+    }
+  }
+  if (hasRoundedMonthlyValues) await saveClimateData(outputFile, climateData);
+  const cachedCoordinates = new Set(climatePlaces.map(placeKey));
+  const missingPlaces = places.filter((place) => !cachedCoordinates.has(placeKey(place)));
+  const batchSize = Math.min(MAX_PLACES_PER_RUN, Math.max(0, maxPlaces));
+  const placesToFetch = missingPlaces.slice(0, batchSize);
+  const completedCount = () => places.filter((place) => cachedCoordinates.has(placeKey(place))).length;
 
-  const output = {
-    source: "Open-Meteo Archive API",
-    license: "CC BY 4.0",
-    period: { startYear: FIRST_YEAR, endYear: LAST_YEAR },
-    places: climatePlaces
-  };
-  const temporaryFile = `${OUTPUT_FILE}.tmp`;
-  await writeFile(temporaryFile, `${JSON.stringify(output, null, 2)}\n`);
-  await rename(temporaryFile, OUTPUT_FILE);
+  log(`${completedCount()} von ${places.length} Orten fertig.`);
+  for (let index = 0; index < placesToFetch.length; index += 1) {
+    const place = placesToFetch[index];
+    if (index) await wait(PAUSE_MS);
+    log(`[${index + 1}/${placesToFetch.length}] ${place.name}`);
+    try {
+      climatePlaces.push(await fetchClimatePlace(place));
+      cachedCoordinates.add(placeKey(place));
+      await saveClimateData(outputFile, climateData);
+      log(`${completedCount()} von ${places.length} Orten fertig.`);
+    } catch (error) {
+      errorLog(`Abruf für ${place.name} abgebrochen: ${error.message}`);
+      return { completed: completedCount(), total: places.length, failed: true };
+    }
+  }
+  return { completed: completedCount(), total: places.length, failed: false };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  build().catch((error) => {
-    console.error(`Klimadaten wurden nicht aktualisiert: ${error.message}`);
-    process.exitCode = 1;
-  });
+  buildClimateData()
+    .then(({ failed }) => {
+      if (failed) process.exitCode = 1;
+    })
+    .catch((error) => {
+      console.error(`Klimadaten wurden nicht aktualisiert: ${error.message}`);
+      process.exitCode = 1;
+    });
 }

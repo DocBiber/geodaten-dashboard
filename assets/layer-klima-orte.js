@@ -8,6 +8,7 @@ const climateMetrics = {
 
 function createClimatePlacesLayer({ controls, statusElement }) {
   const layer = L.layerGroup();
+  const renderer = L.canvas();
   const numberFormat = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
   const places = [];
   const filterPanel = document.createElement("details");
@@ -78,6 +79,7 @@ function createClimatePlacesLayer({ controls, statusElement }) {
     layer.clearLayers();
     for (const place of visiblePlaces) {
       const marker = L.circleMarker([place.latitude, place.longitude], {
+        renderer,
         radius: 7,
         color: "#172033",
         weight: 1,
