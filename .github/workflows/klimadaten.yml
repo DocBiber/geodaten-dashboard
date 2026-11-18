@@ -3,6 +3,7 @@ name: Klimadaten aktualisieren
 on:
   workflow_dispatch:
   schedule:
+    - cron: "0 3,15 * * *"
     - cron: "17 4 1 * *"
 
 permissions:
@@ -18,12 +19,35 @@ jobs:
         uses: actions/setup-node@v7.1.0
         with:
           node-version: 20
+      - name: Prüfen, ob ein Lauf erforderlich ist
+        id: schedule
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "schedule" && "$EVENT_SCHEDULE" != "17 4 1 * *" ]]; then
+            node --input-type=module <<'NODE' >> "$GITHUB_OUTPUT"
+          import { readFileSync } from "node:fs";
+          import { TARGET_PLACE_COUNT } from "./scripts/build_orte.mjs";
+          const climate = JSON.parse(readFileSync("data/klimadaten.json", "utf8"));
+          const shouldRun = (climate.places?.length || 0) < TARGET_PLACE_COUNT;
+          console.log(`run=${shouldRun}`);
+          if (!shouldRun) console.error("Zielgröße erreicht; der monatliche Lauf bleibt aktiv.");
+          NODE
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Klimadaten erstellen
-        run: node scripts/build_klimadaten.mjs
+        if: steps.schedule.outputs.run == 'true'
+        run: |
+          node scripts/build_orte.mjs
+          node scripts/build_klimadaten.mjs
       - name: Änderungen committen
+        if: always() && steps.schedule.outputs.run == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/klimadaten.json
-          git diff --cached --quiet || git commit -m "Update climate data"
-          git push
+          git add data/orte.json data/klimadaten.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update climate data"
+            git push
+          fi
