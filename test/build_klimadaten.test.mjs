@@ -53,10 +53,11 @@ test("lehnt unvollständige Tagesdaten ab", () => {
   assert.throws(() => summarizeDailyData(place, { daily }), /Ungültige Tagesdaten/);
 });
 
-test("bricht Open-Meteo-Aufrufe bei HTTP 429 sofort ab", async () => {
+test("wiederholt Open-Meteo-Aufrufe bei HTTP 429 nach Retry-After", async () => {
   const originalFetch = globalThis.fetch;
   const requestedPlace = { name: "Neapel", latitude: 40.8518, longitude: 14.2681 };
   let requests = 0;
+  const delays = [];
   globalThis.fetch = async (url) => {
     const requestUrl = new URL(url);
     assert.equal(requestUrl.searchParams.get("start_date"), "2015-01-01");
@@ -65,12 +66,41 @@ test("bricht Open-Meteo-Aufrufe bei HTTP 429 sofort ab", async () => {
     assert.equal(requestUrl.searchParams.get("latitude"), String(requestedPlace.latitude));
     assert.equal(requestUrl.searchParams.get("longitude"), String(requestedPlace.longitude));
     requests += 1;
+    if (requests === 1) {
+      return new Response("", { status: 429, headers: { "retry-after": "3" } });
+    }
+    return new Response(JSON.stringify({ daily: dailyData() }), { status: 200 });
+  };
+
+  try {
+    const result = await fetchPlace(requestedPlace, {
+      wait: async (milliseconds) => delays.push(milliseconds)
+    });
+
+    assert.equal(requests, 2);
+    assert.deepEqual(delays, [3000]);
+    assert.equal(result.name, "Neapel");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("beendet wiederholte HTTP-429-Aufrufe nach drei Versuchen", async () => {
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  const delays = [];
+  globalThis.fetch = async () => {
+    requests += 1;
     return new Response("", { status: 429 });
   };
 
   try {
-    await assert.rejects(fetchPlace(requestedPlace), /HTTP 429/);
-    assert.equal(requests, 1);
+    await assert.rejects(fetchPlace(place, {
+      wait: async (milliseconds) => delays.push(milliseconds)
+    }), /HTTP 429/);
+
+    assert.equal(requests, 3);
+    assert.deepEqual(delays, [60_000, 120_000]);
   } finally {
     globalThis.fetch = originalFetch;
   }

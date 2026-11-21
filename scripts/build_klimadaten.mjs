@@ -10,6 +10,8 @@ const LAST_YEAR = 2024;
 const API_URL = "https://archive-api.open-meteo.com/v1/archive";
 const PAUSE_MS = 1100;
 const MAX_ATTEMPTS = 3;
+const DEFAULT_RATE_LIMIT_PAUSE_MS = 60_000;
+const MAX_RATE_LIMIT_PAUSE_MS = 300_000;
 export const MAX_PLACES_PER_RUN = 90;
 
 const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -21,6 +23,16 @@ function average(values) {
 
 function roundToOneDecimal(value) {
   return Math.round(value * 10) / 10;
+}
+
+function retryAfterMilliseconds(value) {
+  if (!value) return null;
+  const seconds = Number(value);
+  const milliseconds = Number.isFinite(seconds)
+    ? seconds * 1000
+    : Date.parse(value) - Date.now();
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) return null;
+  return Math.min(milliseconds, MAX_RATE_LIMIT_PAUSE_MS);
 }
 
 export function summarizeDailyData(place, response) {
@@ -75,7 +87,7 @@ export function summarizeDailyData(place, response) {
   };
 }
 
-export async function fetchPlace(place) {
+export async function fetchPlace(place, { wait = pause } = {}) {
   const parameters = new URLSearchParams({
     latitude: String(place.latitude),
     longitude: String(place.longitude),
@@ -91,14 +103,18 @@ export async function fetchPlace(place) {
       if (response.status === 429) {
         const error = new Error("Open-Meteo hat HTTP 429 gemeldet.");
         error.status = 429;
+        error.retryAfterMs = retryAfterMilliseconds(response.headers?.get("retry-after"));
         throw error;
       }
       if (!response.ok) throw new Error(`Open-Meteo antwortete mit HTTP ${response.status}.`);
       return summarizeDailyData(place, await response.json());
     } catch (error) {
-      if (attempt === MAX_ATTEMPTS || error.status === 429) throw error;
+      if (attempt === MAX_ATTEMPTS) throw error;
       console.warn(`${place.name}: Versuch ${attempt} fehlgeschlagen: ${error.message}`);
-      await pause(PAUSE_MS * attempt);
+      const delay = error.status === 429
+        ? error.retryAfterMs ?? DEFAULT_RATE_LIMIT_PAUSE_MS * attempt
+        : PAUSE_MS * attempt;
+      await wait(delay);
     }
   }
 }
