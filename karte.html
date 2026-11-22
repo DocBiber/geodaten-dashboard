@@ -17,20 +17,21 @@
     </div>
   </header>
   <main class="page-width">
-    <p id="feed-status" class="status" role="status" aria-live="polite">Erdbebendaten werden geladen …</p>
+    <p id="feed-status" class="status" role="status" aria-live="polite">Kartendaten werden geladen …</p>
     <section aria-labelledby="map-heading">
       <h2 id="map-heading">Karte und Themenebenen</h2>
-      <p class="help-text">Wähle in der Ebenenauswahl eine Hintergrundkarte und die Themen, die auf der Karte erscheinen sollen. Städte kannst du nach Einwohnerzahl und Klima-Orte nach Kennwert filtern. Wähle einen Ort, um sein Walter-Lieth-Diagramm zu öffnen.</p>
+      <p class="help-text">Wähle in der Ebenenauswahl die Informationen aus, die auf der Karte erscheinen sollen. Städte kannst du nach Einwohnerzahl und Klima-Orte nach Kennwert filtern. Wähle einen Ort, um sein Walter-Lieth-Diagramm zu öffnen.</p>
       <p id="city-data-status" class="status" role="status" aria-live="polite">Städtedaten werden geladen …</p>
       <p id="climate-data-status" class="status" role="status" aria-live="polite">Klimadaten werden geladen …</p>
       <div class="map-layout">
         <aside id="map-layer-controls" class="layer-panel" aria-label="Kartenebenen auswählen"></aside>
-        <div id="dashboard-map" class="map" role="region" aria-label="Interaktive Karte mit auswählbaren Erdbeben-, Klima-Orte- und Städte-Layern" tabindex="0"></div>
+        <div id="dashboard-map" class="map" role="region" aria-label="Interaktive Karte mit auswählbaren Informations-Layern" tabindex="0"></div>
       </div>
     </section>
     <section class="source-note" aria-labelledby="source-heading">
       <h2 id="source-heading">Quellen und Lizenzen</h2>
       <p>Erdbeben: <a href="https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson">USGS Earthquake Hazards Program</a> (gemeinfrei). Städte: <a href="https://github.com/nvkelso/natural-earth-vector/tree/master/geojson">Natural Earth, Populated Places</a> (gemeinfrei). Einwohnerzahlen sind Näherungswerte und teilweise inklusive Ballungsraum. Klimadaten 2015–2024: <a href="https://open-meteo.com/">Open-Meteo Archive API</a> (CC BY 4.0). Die Werte sind ERA5-Modelldaten, keine Messungen an Wetterstationen.</p>
+      <p>Schummerung: <a href="https://www.arcgis.com/home/item.html?id=6e9c7d7b2f6d4e5e9d8b8b2f7b9b7d4a">Esri World Hillshade</a>. Höhenlinien: <a href="https://opentopomap.org">OpenTopoMap</a> (Kartendaten © OpenStreetMap-Mitwirkende, SRTM). Plattengrenzen: <a href="https://github.com/fraxen/tectonicplates">PB2002 / Tectonic Plates</a> (MIT). Der Vulnerabilitätsindex ist eine vereinfachte Darstellung der <a href="https://gain-new.crc.nd.edu/">ND-GAIN Country Index</a>-Werte; die aufbereiteten Werte stammen aus einem öffentlich zugänglichen Datensatz.</p>
       <p>Die Quellenangaben der Hintergrundkarten erscheinen direkt auf der Karte. <a href="module/erdbeben.html">Erdbebenkarte mit Filter und Diagramm</a> · <a href="module/klima.html">Klimadiagramm für einen frei wählbaren Ort</a>.</p>
     </section>
   </main>
@@ -40,6 +41,7 @@
   <script src="assets/layer-erdbeben.js"></script>
   <script src="assets/layer-klima-orte.js"></script>
   <script src="assets/layer-staedte.js"></script>
+  <script src="assets/layer-geologie.js"></script>
   <script src="assets/karte.js"></script>
 </body>
 </html>

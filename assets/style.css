@@ -357,6 +357,43 @@ input[type="range"] {
   cursor: pointer;
 }
 
+.map-layer-legend {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.contour-selection {
+  display: grid;
+  gap: 0.25rem;
+  font-weight: 700;
+}
+
+.contour-selection select {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.35rem;
+  font: inherit;
+}
+
+.legend-swatch,
+.plate-line {
+  display: inline-block;
+  width: 1.1rem;
+  height: 0.75rem;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.vulnerability-low { background: #facc15; }
+.vulnerability-medium { background: #dc2626; }
+.vulnerability-high { background: #7e22ce; }
+.plate-line { height: 0.2rem; }
+.plate-convergent { background: #dc2626; }
+.plate-divergent { background: #2563eb; }
+.plate-transform { border-top: 0.2rem dashed #16a34a; }
+.plate-unknown { background: #64748b; }
+
 .layer-panel input {
   width: 1.15rem;
   height: 1.15rem;
